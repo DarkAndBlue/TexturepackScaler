@@ -1,0 +1,6 @@
+# Project exclude paths
+/.gradle/
+../../TexturepackScaler/build.gradle
+build/
+/.idea/
+/gradle/
