@@ -4,9 +4,16 @@ plugins {
 
 group 'org.example'
 version '1.0-SNAPSHOT'
+defaultTasks 'jar'
 
 repositories {
     mavenCentral()
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'texturepackscaler.TexturepackScaler'
+    }
 }
 
 dependencies {
