@@ -4,7 +4,7 @@ import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.text.DefaultCaret;
 import java.awt.*;
-import java.awt.image.BufferedImage;
+import java.awt.image.*;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -22,8 +22,10 @@ public class TexturepackScaler extends JFrame {
   private static final int padding = 4;
   private static final Font font = new Font("Arial", Font.PLAIN, 18);
   private static final Integer[] resolutions = new Integer[] { 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192 };
-  private static final SCALEMODE[] scaleModes = new SCALEMODE[] { SCALEMODE.BILINEAR, SCALEMODE.BICUBIC, SCALEMODE.NEAREST_NEIGHBOR };
-  
+  private static final SCALEMODE[] scaleModes = new SCALEMODE[] {
+    SCALEMODE.BILINEAR, SCALEMODE.BICUBIC, SCALEMODE.NEAREST_NEIGHBOR, SCALEMODE.SCALE_AREA_AVERAGING,
+    SCALEMODE.SCALE_FAST, SCALEMODE.SCALE_DEFAULT, SCALEMODE.SCALE_SMOOTH, SCALEMODE.SCALE_REPLICATE
+  };
   
   private File scanPath = null;
   private JComboBox<Integer> searchComboBox;
@@ -175,6 +177,7 @@ public class TexturepackScaler extends JFrame {
     }
     
     process.setText("finished converting");
+    Toolkit.getDefaultToolkit().beep();
   }
   
   private void downScaleAndOverrideImage(File file, BufferedImage image) {
@@ -185,17 +188,29 @@ public class TexturepackScaler extends JFrame {
 //    int imageType = image.getType();
 //    if(imageType == 0) 
     int imageType = BufferedImage.TYPE_INT_ARGB;
-    BufferedImage bufferedImage = new BufferedImage(convertResolution, convertResolution, imageType);
-    Graphics2D graphics2D = bufferedImage.createGraphics();
-    graphics2D.setComposite(AlphaComposite.Src);
-    graphics2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION,scalemode.value);
-    graphics2D.setRenderingHint(RenderingHints.KEY_RENDERING,RenderingHints.VALUE_RENDER_QUALITY);
-    graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
-    graphics2D.drawImage(image, 0, 0, convertResolution, convertResolution, null);
-    graphics2D.dispose();
+    BufferedImage newImage;
+    
+    if(scalemode.value instanceof IMAGESCALING) {
+      Image toolkitImage = image.getScaledInstance(convertResolution, convertResolution, ((IMAGESCALING) scalemode.value).value);
+
+      newImage = new BufferedImage(convertResolution, convertResolution, imageType);
+      Graphics graphics = newImage.getGraphics();
+      graphics.drawImage(toolkitImage, 0, 0, null);
+      graphics.dispose();
+    } else {
+      BufferedImage bufferedImage = new BufferedImage(convertResolution, convertResolution, imageType);
+      Graphics2D graphics2D = bufferedImage.createGraphics();
+      graphics2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION,scalemode.value);
+      graphics2D.setRenderingHint(RenderingHints.KEY_RENDERING,RenderingHints.VALUE_RENDER_QUALITY);
+      graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
+      graphics2D.drawImage(image, 0, 0, convertResolution, convertResolution, null);
+      graphics2D.dispose();
+      
+      newImage = bufferedImage;
+    }
     
     try {
-      ImageIO.write(bufferedImage, "png", file);
+      ImageIO.write(newImage, "png", file);
     } catch (IOException e) {
       e.printStackTrace();
     }
@@ -238,11 +253,30 @@ public class TexturepackScaler extends JFrame {
   enum SCALEMODE {
     BILINEAR(RenderingHints.VALUE_INTERPOLATION_BILINEAR),
     BICUBIC(RenderingHints.VALUE_INTERPOLATION_BICUBIC),
-    NEAREST_NEIGHBOR(RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+    NEAREST_NEIGHBOR(RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR),
+    SCALE_AREA_AVERAGING(IMAGESCALING.SCALE_AREA_AVERAGING),
+    SCALE_FAST(IMAGESCALING.SCALE_FAST),
+    SCALE_DEFAULT(IMAGESCALING.SCALE_DEFAULT),
+    SCALE_SMOOTH(IMAGESCALING.SCALE_SMOOTH),
+    SCALE_REPLICATE(IMAGESCALING.SCALE_REPLICATE);
     
     private final Object value;
     
     SCALEMODE(Object value) {
+      this.value = value;
+    }
+  }
+  
+  enum IMAGESCALING {
+    SCALE_AREA_AVERAGING(Image.SCALE_AREA_AVERAGING),
+    SCALE_FAST(Image.SCALE_FAST),
+    SCALE_DEFAULT(Image.SCALE_DEFAULT),
+    SCALE_SMOOTH(Image.SCALE_SMOOTH),
+    SCALE_REPLICATE(Image.SCALE_REPLICATE);
+  
+    private final int value;
+  
+    IMAGESCALING(int value) {
       this.value = value;
     }
   }
